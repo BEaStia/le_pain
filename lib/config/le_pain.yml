@@ -1,0 +1,6 @@
+environments:
+  development:
+    default: true
+  staging:
+  production:
+  test:
