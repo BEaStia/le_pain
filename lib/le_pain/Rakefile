@@ -1,0 +1,4 @@
+# lib/Rakefile
+require 'le_pain'
+path = File.expand_path(__dir__)
+Dir.glob("#{path}/tasks/**/*.rake").each { |f| p f;import f }

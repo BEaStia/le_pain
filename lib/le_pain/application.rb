@@ -26,7 +26,7 @@ module LePain
       end
 
       def config
-        @config ||= YAML.load_file(File.join(Application.root, 'config', 'le_pain.yml'))
+        @config ||= YAML.load_file(File.join(self.class.root, 'config', 'le_pain.yml'))
       end
 
       def logger
