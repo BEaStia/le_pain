@@ -8,19 +8,16 @@ Gem::Specification.new do |spec|
   spec.authors       = ['Igor Pavlov']
   spec.email         = ['gophan1992@gmail.com']
 
-  spec.summary       = "It's a micro framework for building micro services."
-  spec.description   = 'This gem is intended to be used for fast development of microservices in Ruby.'
+  spec.summary       = 'A micro framework for building Ruby microservices.'
+  spec.description   = 'LePain is a lightweight framework for fast development of microservices in Ruby with environment management, configuration, graceful shutdown, and health checks.'
   spec.homepage      = 'https://github.com/beastia/le_pain'
   spec.license       = 'MIT'
 
-  # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
-  # to allow pushing to a single host or delete this section to allow pushing to any host.
-  if spec.respond_to?(:metadata)
-    spec.metadata['allowed_push_host'] = "TODO: Set to 'http://mygemserver.com'"
-  else
-    raise 'RubyGems 2.0 or newer is required to protect against ' \
-      'public gem pushes.'
-  end
+  spec.required_ruby_version = '>= 3.0.0'
+
+  spec.metadata['homepage_uri'] = spec.homepage
+  spec.metadata['source_code_uri'] = spec.homepage
+  spec.metadata['rubygems_mfa_required'] = 'true'
 
   spec.files = `git ls-files -z`.split("\x0").reject do |f|
     f.match(%r{^(test|spec|features)/})
@@ -29,7 +26,11 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
-  spec.add_development_dependency 'bundler', '~> 1.16'
-  spec.add_development_dependency 'rake', '~> 10.0'
-  spec.add_development_dependency 'rspec', '~> 3.0'
+  spec.add_dependency 'logger', '~> 1.6'
+  spec.add_dependency 'brotli', '~> 0.6'
+
+  spec.add_development_dependency 'bundler', '~> 2.0'
+  spec.add_development_dependency 'rake', '~> 13.0'
+  spec.add_development_dependency 'rspec', '~> 3.12'
+  spec.add_development_dependency 'sqlite3', '~> 2.0'
 end

@@ -1,0 +1,20 @@
+PATH
+  remote: ..
+  specs:
+    le_pain (0.2.0)
+      logger (~> 1.6)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    logger (1.7.0)
+
+PLATFORMS
+  arm64-darwin-25
+  ruby
+
+DEPENDENCIES
+  le_pain!
+
+BUNDLED WITH
+   2.6.9

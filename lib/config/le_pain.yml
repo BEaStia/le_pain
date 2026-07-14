@@ -3,4 +3,95 @@ environments:
     default: true
   staging:
   production:
-  test:
+  docker:
+
+logger:
+  level: debug
+  format: text
+  output: stdout
+  transport_levels:
+    http: info
+    mq: debug
+  request:
+    enabled: true
+    log_body: false
+    log_headers: false
+    sensitive_fields:
+      - authorization
+      - password
+      - password_hash
+      - token
+      - api_key
+      - secret
+
+context:
+  request_id_header: x-request-id
+  trace_id_header: x-trace-id
+  correlation_id_header: x-correlation-id
+
+auth:
+  headers: [X-Api-Key, Authorization]
+
+idempotency:
+  enabled: true
+  ttl: 3600
+  key_header: idempotency-key
+
+http:
+  host: 0.0.0.0
+  port: 3000
+
+http_client:
+  adapter: net_http
+  default_timeout: 5
+  max_retries: 2
+  follow_redirects: true
+  services:
+    order-service:
+      base_url: http://order-service:3000
+      timeout: 10
+      retries: 3
+      adapter: net_http
+
+compression:
+  enabled: true
+  algorithms: [gzip, br]
+  min_size: 1024
+  content_types:
+    - application/json
+    - text/plain
+    - application/xml
+
+task_store:
+  type: memory
+  options:
+    ttl: 86400
+
+async:
+  pool_size: 5
+  timeout: 300
+  retry:
+    max_attempts: 3
+    strategy: exponential
+    backoff_base: 2
+    max_delay: 300
+    jitter: true
+  dead_letter:
+    enabled: true
+    type: memory
+    ttl: 604800
+
+metrics:
+  enabled: true
+  port: 3002
+  auth_token:
+
+health_check:
+  enabled: true
+  port: 3001
+
+shutdown:
+  timeout: 30
+
+error_handling:
+  include_backtrace: false

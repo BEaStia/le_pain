@@ -1,0 +1,8 @@
+valid_order:
+  user_id: "user-123"
+  items:
+    - "item-a"
+    - "item-b"
+invalid_order:
+  user_id:
+  items: []
