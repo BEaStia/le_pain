@@ -128,8 +128,7 @@ module LePain
       end
 
       def apply_circuit_breakers_config(config)
-        # Circuit breaker config would be applied to breakers
-        # This is a placeholder for actual implementation
+        LePain::CircuitBreaker.configure(config)
         LePain::Application.logger.debug("Circuit breakers config reloaded: #{config}")
       end
     end

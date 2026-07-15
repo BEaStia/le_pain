@@ -13,7 +13,9 @@ module LePain
       end
 
       def publish(topic, message)
-        LePain::Application.logger.info("kafka publishing to #{topic}")
+        CircuitBreaker.get('kafka').call do
+          LePain::Application.logger.info("kafka publishing to #{topic}")
+        end
       end
     end
 
@@ -27,7 +29,9 @@ module LePain
       end
 
       def publish(topic, message)
-        LePain::Application.logger.info("nats publishing to #{topic}")
+        CircuitBreaker.get('nats').call do
+          LePain::Application.logger.info("nats publishing to #{topic}")
+        end
       end
     end
 
@@ -41,7 +45,9 @@ module LePain
       end
 
       def publish(topic, message)
-        LePain::Application.logger.info("rmq publishing to #{topic}")
+        CircuitBreaker.get('rmq').call do
+          LePain::Application.logger.info("rmq publishing to #{topic}")
+        end
       end
     end
   end

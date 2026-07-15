@@ -15,61 +15,77 @@ module LePain
       end
 
       def create(task)
-        data = task.to_h
-        @redis.multi do
-          @redis.setex(task_key(task.id), @ttl, JSON.generate(data))
-          @redis.zadd(INDEX_KEY, task.created_at.to_f, task.id)
+        with_circuit_breaker do
+          data = task.to_h
+          @redis.multi do
+            @redis.setex(task_key(task.id), @ttl, JSON.generate(data))
+            @redis.zadd(INDEX_KEY, task.created_at.to_f, task.id)
+          end
+          task
         end
-        task
       end
 
       def find(id)
-        data = @redis.get(task_key(id))
-        return nil unless data
+        with_circuit_breaker do
+          data = @redis.get(task_key(id))
+          return nil unless data
 
-        JSON.parse(data)
+          JSON.parse(data)
+        end
       end
 
       def update(id, &block)
-        data = @redis.get(task_key(id))
-        return nil unless data
+        with_circuit_breaker do
+          data = @redis.get(task_key(id))
+          return nil unless data
 
-        task = Task.from_hash(JSON.parse(data))
-        yield task
-        @redis.setex(task_key(id), @ttl, JSON.generate(task.to_h))
-        task
+          task = Task.from_hash(JSON.parse(data))
+          yield task
+          @redis.setex(task_key(id), @ttl, JSON.generate(task.to_h))
+          task
+        end
       end
 
       def delete(id)
-        @redis.multi do
-          @redis.del(task_key(id))
-          @redis.zrem(INDEX_KEY, id)
+        with_circuit_breaker do
+          @redis.multi do
+            @redis.del(task_key(id))
+            @redis.zrem(INDEX_KEY, id)
+          end
         end
       end
 
       def list(limit: 50, state: nil)
-        ids = @redis.zrevrange(INDEX_KEY, 0, limit - 1)
-        tasks = ids.map { |id| find(id) }.compact.map { |data| Task.from_hash(data) }
+        with_circuit_breaker do
+          ids = @redis.zrevrange(INDEX_KEY, 0, limit - 1)
+          tasks = ids.map { |id| find(id) }.compact.map { |data| Task.from_hash(data) }
 
-        tasks = tasks.select { |t| t.state == state } if state
-        tasks
+          tasks = tasks.select { |t| t.state == state } if state
+          tasks
+        end
       end
 
       def cleanup
-        @redis.zremrangebyscore(INDEX_KEY, 0, Time.now.to_f - @ttl)
+        with_circuit_breaker { @redis.zremrangebyscore(INDEX_KEY, 0, Time.now.to_f - @ttl) }
       end
 
       def size
-        @redis.zcard(INDEX_KEY)
+        with_circuit_breaker { @redis.zcard(INDEX_KEY) }
       end
 
       def clear
-        keys = @redis.keys("#{KEY_PREFIX}*")
-        @redis.del(*keys) if keys.any?
-        @redis.del(INDEX_KEY)
+        with_circuit_breaker do
+          keys = @redis.keys("#{KEY_PREFIX}*")
+          @redis.del(*keys) if keys.any?
+          @redis.del(INDEX_KEY)
+        end
       end
 
       private
+
+      def with_circuit_breaker(&block)
+        CircuitBreaker.get('redis_task_store').call(&block)
+      end
 
       def task_key(id)
         "#{KEY_PREFIX}#{id}"

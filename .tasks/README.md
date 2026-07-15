@@ -6,9 +6,10 @@
 
 Audited against current code and specs.
 
-### Done (10)
+### Done (11)
 - 01: Structured Logging
 - 02: Metrics & Observability
+- 03: Circuit Breaker
 - 04: Retry Policy
 - 07: Request Validation
 - 09: Middleware Pipeline
@@ -18,8 +19,7 @@ Audited against current code and specs.
 - 41: Request/Response Transformation
 - 42: Error Classification
 
-### Partial (13)
-- 03: Circuit Breaker
+### Partial (12)
 - 05: PostgreSQL Task Store
 - 06: CLI Generator
 - 08: Rate Limiting
@@ -120,6 +120,6 @@ Audited against current code and specs.
 ## Priority Recommendations
 
 **P0 (Do First):** none
-**P1 (Do Next):** 03, 15, 24, 28
+**P1 (Do Next):** 15, 24, 28
 **P2 (Plan):** 05, 06, 10, 11, 13, 18, 19, 27
 **P3 (Backlog):** 12, 14, 16, 17, 20, 21, 22, 23, 26, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43

@@ -86,6 +86,16 @@ metrics:
   port: 3002
   auth_token:
 
+circuit_breakers:
+  redis:
+    failure_threshold: 5
+    success_threshold: 2
+    timeout: 30
+  kafka:
+    failure_threshold: 10
+    success_threshold: 2
+    timeout: 60
+
 health_check:
   enabled: true
   port: 3001

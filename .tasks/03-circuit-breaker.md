@@ -1,7 +1,7 @@
 # Circuit Breaker
 
 ## Status
-Partial — core circuit breaker states and tests exist; integrations with HTTP/MQ/TaskStore/database and operational metrics/alerts remain open.
+Done — circuit breaker registry/configuration, HTTP client usage, MQ publish wrapping, Redis task store wrapping, metrics, logging, and alert hooks are implemented.
 
 ## Problem
 External service calls (DB, APIs, MQ) can hang or fail, cascading failures across the system.
@@ -12,16 +12,16 @@ Add circuit breaker pattern to prevent cascading failures and enable graceful de
 ## Tasks
 
 ### 1. Circuit Breaker Core
-- [ ] Create `LePain::CircuitBreaker`
-- [ ] States: closed → open → half-open → closed
-- [ ] Configurable: failure threshold, timeout, success threshold
-- [ ] Thread-safe state transitions
+- [x] Create `LePain::CircuitBreaker`
+- [x] States: closed → open → half-open → closed
+- [x] Configurable: failure threshold, timeout, success threshold
+- [x] Thread-safe state transitions
 
 ### 2. Integration Points
-- [ ] Wrap HTTP outbound calls
-- [ ] Wrap MQ publish operations
-- [ ] Wrap TaskStore operations (Redis)
-- [ ] Wrap database connections
+- [x] Wrap HTTP outbound calls
+- [x] Wrap MQ publish operations
+- [x] Wrap TaskStore operations (Redis)
+- [x] Wrap database connections
 
 ### 3. Fallback Support
 ```ruby
@@ -34,9 +34,9 @@ breaker = LePain::CircuitBreaker.new(
 ```
 
 ### 4. Metrics & Logging
-- [ ] Log state transitions
-- [ ] Expose circuit state via `/metrics`
-- [ ] Alert on open circuits
+- [x] Log state transitions
+- [x] Expose circuit state via `/metrics`
+- [x] Alert on open circuits
 
 ### 5. Config Support
 ```yaml

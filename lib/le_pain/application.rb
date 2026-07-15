@@ -78,6 +78,7 @@ module LePain
         return if @metrics_enabled
 
         MetricsHandler.auth_token = config.dig('metrics', 'auth_token')
+        configure_circuit_breakers
         @metrics_enabled = true
         router.route('GET:/metrics') { |req, ctx| MetricsHandler.handle_request(req, ctx) }
       end
@@ -109,6 +110,10 @@ module LePain
         store_options = dead_letter_config['options'] || {}
         store_options = store_options.merge('ttl' => dead_letter_config['ttl']) if dead_letter_config['ttl']
         AsyncHandler.dead_letter_store = TaskStores.resolve(store_type, **symbolize_options(store_options))
+      end
+
+      def configure_circuit_breakers
+        CircuitBreaker.configure(config['circuit_breakers'] || {})
       end
 
       def symbolize_options(options)

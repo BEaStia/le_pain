@@ -85,6 +85,7 @@ module LePain
         )
         gauge('process_memory_bytes', 'Process memory usage in bytes').set(current_memory_bytes)
         gauge('metrics_registered_total', 'Number of registered metrics').set(registry.names.size)
+        collect_circuit_breaker_metrics
       end
 
       def current_memory_bytes
@@ -92,6 +93,17 @@ module LePain
         pages * 1024
       rescue StandardError
         0
+      end
+
+      def collect_circuit_breaker_metrics
+        return unless LePain.const_defined?(:CircuitBreaker)
+
+        LePain::CircuitBreaker.all.each do |breaker|
+          LePain::CircuitBreaker::STATES.each do |state|
+            gauge('circuit_breaker_state', 'Circuit breaker state as one-hot gauge', labels: %w[name state])
+              .set(breaker.state == state ? 1 : 0, { 'name' => breaker.name, 'state' => state.to_s })
+          end
+        end
       end
     end
   end
