@@ -13,6 +13,7 @@ require_relative 'response'
 require_relative 'transports'
 require_relative 'transports/http'
 require_relative 'security'
+require_relative 'cache'
 
 module LePain
   class Application
@@ -63,6 +64,7 @@ module LePain
           end
 
           configure_security_middleware(r)
+          configure_cache
         end
       end
 
@@ -118,6 +120,10 @@ module LePain
 
       def configure_circuit_breakers
         CircuitBreaker.configure(config['circuit_breakers'] || {})
+      end
+
+      def configure_cache
+        Cache.configure(config['cache'] || {})
       end
 
       def configure_security_middleware(router)

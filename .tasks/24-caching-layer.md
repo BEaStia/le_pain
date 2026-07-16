@@ -1,7 +1,7 @@
 # Caching Layer
 
 ## Status
-Partial — in-memory cache with TTL, fetch, and basic LRU eviction exists; Redis/Memcached/file stores, tenant prefixes, versioned keys, and tag invalidation remain open.
+Done — memory, Redis, Memcached, and file stores are implemented with TTL, LRU, tenant/service/version key prefixes, tag invalidation, cache-aside helpers, config support, and hit/miss metrics.
 
 ## Problem
 Repeated expensive computations or external calls waste resources. No built-in caching mechanism.
@@ -20,15 +20,15 @@ LePain::Cache.delete('user:123')
 ```
 
 ### 2. Storage Backends
-- [ ] Memory (LRU eviction)
-- [ ] Redis
-- [ ] Memcached
-- [ ] File-based
+- [x] Memory (LRU eviction)
+- [x] Redis
+- [x] Memcached
+- [x] File-based
 
 ### 3. Context-Aware Keys
-- [ ] Auto-prefix by tenant/service
-- [ ] Include version in key
-- [ ] Tag-based invalidation
+- [x] Auto-prefix by tenant/service
+- [x] Include version in key
+- [x] Tag-based invalidation
 
 ### 4. Cache-Aside Pattern
 ```ruby

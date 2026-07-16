@@ -67,6 +67,13 @@ compression:
     - text/plain
     - application/xml
 
+cache:
+  store: memory
+  default_ttl: 300
+  max_size: 1000
+  namespace: le_pain
+  version: v1
+
 task_store:
   type: memory
   options:
