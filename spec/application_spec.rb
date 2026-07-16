@@ -3,7 +3,7 @@ require 'spec_helper'
 RSpec.describe LePain::Application do
   describe '.version' do
     it 'returns the correct version' do
-      expect(LePain::VERSION).to eq('0.2.0')
+      expect(LePain::VERSION).to eq('0.3.0')
     end
   end
 

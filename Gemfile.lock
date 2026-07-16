@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    le_pain (0.2.0)
+    le_pain (0.3.0)
       brotli (~> 0.6)
       logger (~> 1.6)
 

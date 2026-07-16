@@ -6,7 +6,7 @@
 
 Audited against current code and specs.
 
-### Done (14)
+### Done (15)
 - 01: Structured Logging
 - 02: Metrics & Observability
 - 03: Circuit Breaker
@@ -21,8 +21,9 @@ Audited against current code and specs.
 - 40: Compression
 - 41: Request/Response Transformation
 - 42: Error Classification
+- 44: Declarative Endpoint Contracts
 
-### Partial (10)
+### Partial (9)
 - 05: PostgreSQL Task Store
 - 06: CLI Generator
 - 08: Rate Limiting
@@ -32,7 +33,6 @@ Audited against current code and specs.
 - 18: Database Migrations
 - 19: Config Hot Reload
 - 27: Feature Flags
-- 44: Declarative Endpoint Contracts
 
 ### Open (20)
 - 12: Event Sourcing
@@ -123,5 +123,5 @@ Audited against current code and specs.
 
 **P0 (Do First):** none
 **P1 (Do Next):** none
-**P2 (Plan):** 44, 05, 06, 10, 11, 13, 18, 19, 27
+**P2 (Plan):** 05, 06, 10, 11, 13, 18, 19, 27
 **P3 (Backlog):** 12, 14, 16, 17, 20, 21, 22, 23, 26, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43

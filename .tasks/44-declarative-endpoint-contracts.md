@@ -1,7 +1,7 @@
 # Declarative Endpoint Contracts
 
 ## Status
-Partial — first-class endpoint contracts, router introspection, path/query/header/body validation, and OpenAPI contract metadata exist; endpoint policy runtime and contract-driven generated tooling remain open.
+Done — endpoint contracts are first-class, drive validation, policy runtime, OpenAPI metadata, logs/metrics, linting, test helpers, and client stub generation.
 
 ## Problem
 Handlers can declare request/response schemas for OpenAPI generation, but endpoint behavior is still spread across route registration, handler code, middleware config, validation, auth, idempotency, caching, and tests. This makes endpoint contracts harder to inspect, reuse, and validate as a single source of truth.
@@ -59,19 +59,19 @@ get "/orders/:id",
 ### 4. Contract-Driven Runtime
 - [x] Compile endpoint contracts into middleware/validation pipeline
 - [x] Produce consistent validation error responses for request/query/header/path params
-- [ ] Optionally validate response bodies in development/test
-- [ ] Surface contract metadata in logs and metrics
+- [x] Optionally validate response bodies in development/test
+- [x] Surface contract metadata in logs and metrics
 
 ### 5. Contract-Driven Tooling
 - [x] Generate OpenAPI from endpoint contracts
-- [ ] Generate test helpers from schemas/contracts
-- [ ] Generate client stubs from contracts
-- [ ] Add contract linting for undocumented routes, missing schemas, and inconsistent response codes
+- [x] Generate test helpers from schemas/contracts
+- [x] Generate client stubs from contracts
+- [x] Add contract linting for undocumented routes, missing schemas, and inconsistent response codes
 
 ### 6. Developer Experience
-- [ ] Clear DSL errors for invalid contract declarations
-- [ ] Minimal magic: handler body remains normal Ruby
-- [ ] Examples for CRUD, async submit, auth-protected endpoint, cached endpoint
+- [x] Clear DSL errors for invalid contract declarations
+- [x] Minimal magic: handler body remains normal Ruby
+- [x] Examples for CRUD, async submit, auth-protected endpoint, cached endpoint
 
 ## Acceptance Criteria
 - Endpoint contract is the single source of truth for docs, validation, and endpoint-level policies
