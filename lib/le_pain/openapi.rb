@@ -61,11 +61,16 @@ module LePain
       attr_reader :summary, :description, :tags, :parameters, :request_body, :responses, :security
 
       def initialize(**metadata)
+        @contract = metadata.delete(:contract)
+        metadata = @contract.metadata.merge(metadata) if @contract
         @summary = metadata[:summary]
         @description = metadata[:description]
         @tags = Array(metadata[:tags])
         @parameters = Array(metadata[:parameters])
         @request_body = metadata[:request_body]
+        @params_schema = metadata[:params]
+        @query_schema = metadata[:query]
+        @headers_schema = metadata[:headers]
         @request_schema = metadata[:request]
         @response_schema = metadata[:response]
         @responses = metadata[:responses] || {}
@@ -115,15 +120,18 @@ module LePain
           summary: @summary,
           description: @description,
           tags: @tags,
-          parameters: @parameters,
+          parameters: operation_parameters,
           requestBody: @request_body || request_body_from_schema,
           responses: normalized_responses,
           security: @security.empty? ? nil : @security,
+          'x-le-pain-policies': @contract&.policies&.empty? ? nil : @contract&.policies,
         }.compact
       end
 
       def schemas
-        [@request_schema, @response_schema].compact.select { |schema| schema.respond_to?(:to_openapi_schema) }
+        [@params_schema, @query_schema, @headers_schema, @request_schema, @response_schema]
+          .compact
+          .select { |schema| schema.respond_to?(:to_openapi_schema) }
       end
 
       private
@@ -145,6 +153,26 @@ module LePain
         return @responses unless @responses.empty?
 
         { '200' => { description: 'Success' } }
+      end
+
+      def operation_parameters
+        parameters = @parameters.dup
+        parameters.concat(schema_parameters(@query_schema, 'query'))
+        parameters.concat(schema_parameters(@headers_schema, 'header'))
+        parameters
+      end
+
+      def schema_parameters(schema, location)
+        return [] unless schema.respond_to?(:fields)
+
+        schema.fields.values.map do |field|
+          {
+            name: field.name,
+            in: location,
+            required: field.required,
+            schema: field.to_openapi_schema,
+          }
+        end
       end
 
       def schema_ref(schema)
@@ -229,7 +257,7 @@ module LePain
 
       def description_for(action, handler)
         return handler.api_descriptions[action] if handler.respond_to?(:api_descriptions) && handler.api_descriptions[action]
-        return RouteDescription.new(**handler.route_metadata[action]) if handler.respond_to?(:route_metadata) && handler.route_metadata[action]
+        return RouteDescription.new(contract: handler.endpoint_contracts[action]) if handler.respond_to?(:endpoint_contracts) && handler.endpoint_contracts[action]
 
         nil
       end

@@ -142,6 +142,38 @@ RSpec.describe LePain::OpenApi::Generator do
       expect(spec.components[:schemas]['CreateUserRequest']).to be_a(Hash)
     end
 
+    it 'generates query/header parameters and policy extensions from endpoint contracts' do
+      query_schema = Class.new(LePain::Schema) do
+        def self.name = 'ListUsersQuery'
+
+        field :limit, Integer, required: false
+      end
+      header_schema = Class.new(LePain::Schema) do
+        def self.name = 'RequestHeaders'
+
+        field :'x-client-id', String
+      end
+      handler_class = Class.new(LePain::Handler) do
+        get '/users',
+            query: query_schema,
+            headers: header_schema,
+            auth: :required,
+            rate_limit: { limit: 50, window: 60 },
+            summary: 'List users'
+      end
+
+      router = LePain::Router.new
+      router.register('GET:/users', handler_class)
+      spec = generator.generate_from_router(router)
+      operation = spec.paths['/users'][:get]
+
+      expect(operation[:parameters]).to include(hash_including(name: 'limit', in: 'query'))
+      expect(operation[:parameters]).to include(hash_including(name: 'x-client-id', in: 'header'))
+      expect(operation[:'x-le-pain-policies']).to include(auth: :required, rate_limit: { limit: 50, window: 60 })
+      expect(spec.components[:schemas]['ListUsersQuery']).to be_a(Hash)
+      expect(spec.components[:schemas]['RequestHeaders']).to be_a(Hash)
+    end
+
     it 'records warnings for undocumented routes' do
       router = LePain::Router.new
       router.route('GET:/undocumented') { |_req, _ctx| LePain::Response.success({}) }

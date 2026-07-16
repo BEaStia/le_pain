@@ -43,8 +43,9 @@ module LePain
 
     def self.from_http(method:, path:, body: {}, headers: {}, query: {})
       action = "#{method.upcase}:#{path}"
-      payload = body.merge(query.transform_keys(&:to_s))
-      new(action: action, payload: payload, headers: headers, transport: :http)
+      normalized_query = query.transform_keys(&:to_s)
+      payload = body.merge(normalized_query)
+      new(action: action, payload: payload, headers: headers, metadata: { query: normalized_query }, transport: :http)
     end
 
     def self.from_mq(topic:, message:, metadata: {})

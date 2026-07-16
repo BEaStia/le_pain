@@ -147,6 +147,15 @@ module LePain
       @routes.dup
     end
 
+    def endpoint_contracts
+      @routes.each_with_object({}) do |(action, handler), contracts|
+        next unless handler.respond_to?(:endpoint_contracts)
+
+        contract = handler.endpoint_contracts[action]
+        contracts[action] = contract if contract
+      end
+    end
+
     private
 
     def dispatch_to_handler(request, context)

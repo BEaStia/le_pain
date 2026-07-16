@@ -1,7 +1,7 @@
 # Declarative Endpoint Contracts
 
 ## Status
-Open — `LePain::Schema` and route metadata exist as the first step, but endpoint contracts are not yet a first-class framework concept.
+Partial — first-class endpoint contracts, router introspection, path/query/header/body validation, and OpenAPI contract metadata exist; endpoint policy runtime and contract-driven generated tooling remain open.
 
 ## Problem
 Handlers can declare request/response schemas for OpenAPI generation, but endpoint behavior is still spread across route registration, handler code, middleware config, validation, auth, idempotency, caching, and tests. This makes endpoint contracts harder to inspect, reuse, and validate as a single source of truth.
@@ -30,10 +30,10 @@ class OrdersHandler < LePain::Handler
 end
 ```
 
-- [ ] Introduce `LePain::Endpoint` / `LePain::EndpointContract`
-- [ ] Store method, path, schemas, docs, auth, cache, rate limit, idempotency, and middleware metadata together
-- [ ] Expose contracts through router introspection
-- [ ] Keep old `handle` and `describe` APIs backward-compatible
+- [x] Introduce `LePain::Endpoint` / `LePain::EndpointContract`
+- [x] Store method, path, schemas, docs, auth, cache, rate limit, idempotency, and middleware metadata together
+- [x] Expose contracts through router introspection
+- [x] Keep old `handle` and `describe` APIs backward-compatible
 
 ### 2. Typed Params, Query, Headers
 ```ruby
@@ -44,26 +44,26 @@ get "/orders/:id",
   response: OrderResponse
 ```
 
-- [ ] Support path params schema
-- [ ] Support query params schema
-- [ ] Support header schema
-- [ ] Validate all contract sections before handler execution
+- [x] Support path params schema
+- [x] Support query params schema
+- [x] Support header schema
+- [x] Validate all contract sections before handler execution
 
 ### 3. Policy Declarations
-- [ ] Declare auth requirements per endpoint
-- [ ] Declare permissions/scopes per endpoint
-- [ ] Declare idempotency strategy per endpoint
-- [ ] Declare rate limits per endpoint
-- [ ] Declare cache behavior and invalidation tags per endpoint
+- [x] Declare auth requirements per endpoint
+- [x] Declare permissions/scopes per endpoint
+- [x] Declare idempotency strategy per endpoint
+- [x] Declare rate limits per endpoint
+- [x] Declare cache behavior and invalidation tags per endpoint
 
 ### 4. Contract-Driven Runtime
-- [ ] Compile endpoint contracts into middleware/validation pipeline
-- [ ] Produce consistent validation error responses for request/query/header/path params
+- [x] Compile endpoint contracts into middleware/validation pipeline
+- [x] Produce consistent validation error responses for request/query/header/path params
 - [ ] Optionally validate response bodies in development/test
 - [ ] Surface contract metadata in logs and metrics
 
 ### 5. Contract-Driven Tooling
-- [ ] Generate OpenAPI from endpoint contracts
+- [x] Generate OpenAPI from endpoint contracts
 - [ ] Generate test helpers from schemas/contracts
 - [ ] Generate client stubs from contracts
 - [ ] Add contract linting for undocumented routes, missing schemas, and inconsistent response codes

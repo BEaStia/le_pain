@@ -22,7 +22,7 @@ Audited against current code and specs.
 - 41: Request/Response Transformation
 - 42: Error Classification
 
-### Partial (9)
+### Partial (10)
 - 05: PostgreSQL Task Store
 - 06: CLI Generator
 - 08: Rate Limiting
@@ -32,8 +32,9 @@ Audited against current code and specs.
 - 18: Database Migrations
 - 19: Config Hot Reload
 - 27: Feature Flags
+- 44: Declarative Endpoint Contracts
 
-### Open (21)
+### Open (20)
 - 12: Event Sourcing
 - 14: Performance Benchmarks
 - 16: WebSocket Transport
@@ -54,7 +55,6 @@ Audited against current code and specs.
 - 38: Request Deduplication
 - 39: Multi-Region
 - 43: Dependency Injection
-- 44: Declarative Endpoint Contracts
 
 ## Summary by Category
 
