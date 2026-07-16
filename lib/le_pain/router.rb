@@ -143,6 +143,10 @@ module LePain
       @routes.keys
     end
 
+    def route_handlers
+      @routes.dup
+    end
+
     private
 
     def dispatch_to_handler(request, context)

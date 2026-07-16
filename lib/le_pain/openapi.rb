@@ -1,18 +1,19 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'yaml'
 
 module LePain
   module OpenApi
     class Spec
       attr_reader :info, :paths, :components
 
-      def initialize
+      def initialize(info: nil)
         @info = {
           title: 'LePain API',
           version: '1.0.0',
           description: 'API documentation',
-        }
+        }.merge((info || {}).transform_keys(&:to_sym))
         @paths = {}
         @components = { schemas: {} }
       end
@@ -50,19 +51,25 @@ module LePain
       def to_json
         JSON.pretty_generate(to_h)
       end
+
+      def to_yaml
+        YAML.dump(JSON.parse(JSON.generate(to_h)))
+      end
     end
 
     class RouteDescription
       attr_reader :summary, :description, :tags, :parameters, :request_body, :responses, :security
 
-      def initialize
-        @summary = nil
-        @description = nil
-        @tags = []
-        @parameters = []
-        @request_body = nil
-        @responses = {}
-        @security = []
+      def initialize(**metadata)
+        @summary = metadata[:summary]
+        @description = metadata[:description]
+        @tags = Array(metadata[:tags])
+        @parameters = Array(metadata[:parameters])
+        @request_body = metadata[:request_body]
+        @request_schema = metadata[:request]
+        @response_schema = metadata[:response]
+        @responses = metadata[:responses] || {}
+        @security = Array(metadata[:security])
       end
 
       def summary=(summary)
@@ -103,34 +110,75 @@ module LePain
       end
 
       def to_operation
+        add_response('200', description: 'Success', schema: schema_ref(@response_schema)) if @response_schema && @responses.empty?
         {
           summary: @summary,
           description: @description,
           tags: @tags,
           parameters: @parameters,
-          requestBody: @request_body,
-          responses: @responses,
+          requestBody: @request_body || request_body_from_schema,
+          responses: normalized_responses,
           security: @security.empty? ? nil : @security,
         }.compact
+      end
+
+      def schemas
+        [@request_schema, @response_schema].compact.select { |schema| schema.respond_to?(:to_openapi_schema) }
+      end
+
+      private
+
+      def request_body_from_schema
+        return nil unless @request_schema
+
+        {
+          required: true,
+          content: {
+            'application/json' => {
+              schema: schema_ref(@request_schema),
+            },
+          },
+        }
+      end
+
+      def normalized_responses
+        return @responses unless @responses.empty?
+
+        { '200' => { description: 'Success' } }
+      end
+
+      def schema_ref(schema)
+        return nil unless schema
+
+        { '$ref': "#/components/schemas/#{schema.schema_name}" }
       end
     end
 
     module HandlerDsl
-      def describe(action, &block)
+      def describe(action, **metadata, &block)
         descriptions = @api_descriptions ||= {}
-        desc = RouteDescription.new
-        desc.instance_exec(&block)
+        desc = RouteDescription.new(**metadata)
+        desc.instance_exec(&block) if block
         descriptions[action.to_s] = desc
       end
 
       def api_descriptions
         @api_descriptions ||= {}
       end
+
+      def route(method, path, **metadata)
+        action = super
+        describe(action, **metadata) unless metadata.empty?
+        action
+      end
     end
 
     class Generator
+      attr_reader :warnings
+
       def initialize(spec: nil)
         @spec = spec || Spec.new
+        @warnings = []
       end
 
       def generate_from_handlers(handlers)
@@ -150,28 +198,19 @@ module LePain
       def generate_from_router(router)
         router.routes.each do |action|
           method, path = parse_action(action)
+          handler = router.route_handlers[action]
+          desc = description_for(action, handler)
+          operation = if desc
+                        add_schemas(desc)
+                        desc.to_operation
+                      else
+                        @warnings << "Route #{action} is undocumented"
+                        fallback_operation(method, path)
+                      end
 
-          # Create a basic operation if no description exists
-          operation = {
-            summary: "#{method.upcase} #{path}",
-            responses: {
-              '200' => { description: 'Success' },
-              '404' => { description: 'Not found' },
-            },
-          }
+          operation[:parameters] = Array(operation[:parameters]) + path_parameters(path)
 
-          # Extract path parameters
-          path.scan(/:(\w+)/).each do |param|
-            operation[:parameters] ||= []
-            operation[:parameters] << {
-              name: param[0],
-              in: 'path',
-              required: true,
-              schema: { type: 'string' },
-            }
-          end
-
-          @spec.add_path(method, path, operation)
+          @spec.add_path(method, openapi_path(path), operation)
         end
 
         @spec
@@ -187,25 +226,100 @@ module LePain
           ['get', "/#{action}"]
         end
       end
+
+      def description_for(action, handler)
+        return handler.api_descriptions[action] if handler.respond_to?(:api_descriptions) && handler.api_descriptions[action]
+        return RouteDescription.new(**handler.route_metadata[action]) if handler.respond_to?(:route_metadata) && handler.route_metadata[action]
+
+        nil
+      end
+
+      def add_schemas(desc)
+        desc.schemas.each do |schema|
+          @spec.add_schema(schema.schema_name, schema.to_openapi_schema)
+        end
+      end
+
+      def fallback_operation(method, path)
+        {
+          summary: "#{method.upcase} #{path}",
+          responses: {
+            '200' => { description: 'Success' },
+            '404' => { description: 'Not found' },
+          },
+        }
+      end
+
+      def path_parameters(path)
+        path.scan(/:(\w+)/).map do |param|
+          {
+            name: param[0],
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+          }
+        end
+      end
+
+      def openapi_path(path)
+        path.gsub(/:([^\/]+)/, '{\1}')
+      end
     end
 
     class Handler
-      def initialize(spec: nil)
-        @generator = Generator.new(spec: spec)
+      def initialize(spec: nil, router: nil, config: nil)
+        @spec = spec
+        @router = router
+        @config = config || {}
       end
 
       def call(request, context, next_handler)
         case request.action
         when 'GET:/openapi.json'
-          spec = @generator.generate_from_router(LePain::Application.router)
-          LePain::Response.new(
-            status: 200,
-            body: spec.to_h,
-            headers: { 'Content-Type' => 'application/json' }
-          )
+          respond(body: generated_spec.to_h, content_type: 'application/json')
+        when 'GET:/openapi.yaml'
+          respond(body: generated_spec.to_yaml, content_type: 'application/yaml')
+        when 'GET:/docs'
+          respond(body: swagger_ui, content_type: 'text/html')
+        when 'GET:/redoc'
+          respond(body: redoc_ui, content_type: 'text/html')
         else
           next_handler.call(request, context)
         end
+      end
+
+      private
+
+      def generated_spec
+        spec = @spec || Spec.new(info: @config['info'])
+        Generator.new(spec: spec).generate_from_router(@router || LePain::Application.router)
+      end
+
+      def respond(body:, content_type:)
+        LePain::Response.new(status: 200, body: body, headers: { 'Content-Type' => content_type })
+      end
+
+      def swagger_ui
+        <<~HTML
+          <!doctype html>
+          <html><head><title>Swagger UI</title></head>
+          <body>
+            <div id="swagger-ui"></div>
+            <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+            <script>SwaggerUIBundle({ url: '/openapi.json', dom_id: '#swagger-ui' });</script>
+          </body></html>
+        HTML
+      end
+
+      def redoc_ui
+        <<~HTML
+          <!doctype html>
+          <html><head><title>ReDoc</title></head>
+          <body>
+            <redoc spec-url="/openapi.json"></redoc>
+            <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+          </body></html>
+        HTML
       end
     end
   end

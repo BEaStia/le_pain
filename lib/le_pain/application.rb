@@ -14,6 +14,7 @@ require_relative 'transports'
 require_relative 'transports/http'
 require_relative 'security'
 require_relative 'cache'
+require_relative 'openapi'
 
 module LePain
   class Application
@@ -65,6 +66,7 @@ module LePain
 
           configure_security_middleware(r)
           configure_cache
+          configure_openapi(r)
         end
       end
 
@@ -124,6 +126,17 @@ module LePain
 
       def configure_cache
         Cache.configure(config['cache'] || {})
+      end
+
+      def configure_openapi(router)
+        openapi_config = config.fetch('openapi', {})
+        return if openapi_config['enabled'] == false
+
+        handler = OpenApi::Handler.new(router: router, config: openapi_config)
+        router.route('GET:/openapi.json') { |req, ctx| handler.call(req, ctx, ->(_r, _c) { Response.not_found }) }
+        router.route('GET:/openapi.yaml') { |req, ctx| handler.call(req, ctx, ->(_r, _c) { Response.not_found }) }
+        router.route('GET:/docs') { |req, ctx| handler.call(req, ctx, ->(_r, _c) { Response.not_found }) } if openapi_config.dig('docs', 'swagger_ui') != false
+        router.route('GET:/redoc') { |req, ctx| handler.call(req, ctx, ->(_r, _c) { Response.not_found }) } if openapi_config.dig('docs', 'redoc') != false
       end
 
       def configure_security_middleware(router)

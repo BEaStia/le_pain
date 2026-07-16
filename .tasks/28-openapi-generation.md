@@ -1,7 +1,7 @@
 # OpenAPI / Swagger Generation
 
 ## Status
-Partial — OpenAPI spec builder, route descriptions, router generation, and JSON handler exist; YAML endpoint, Swagger/ReDoc UI, request/response validation, and undocumented-route warnings remain open.
+Done — OpenAPI now supports FastAPI-like schema annotations, JSON/YAML generation, Swagger/ReDoc endpoints, request/response schema validation, and undocumented-route warnings.
 
 ## Problem
 API documentation is manual and gets out of sync. Clients need accurate specs for code generation.
@@ -33,21 +33,21 @@ end
 ```
 
 ### 2. Spec Generation
-- [ ] Collect all route descriptions
-- [ ] Generate OpenAPI 3.0 YAML/JSON
-- [ ] Include schemas, parameters, responses
-- [ ] Auto-generate from handler signatures
+- [x] Collect all route descriptions
+- [x] Generate OpenAPI 3.0 YAML/JSON
+- [x] Include schemas, parameters, responses
+- [x] Auto-generate from handler schema metadata
 
 ### 3. Endpoints
-- [ ] `GET /openapi.json` — raw spec
-- [ ] `GET /openapi.yaml` — raw spec
-- [ ] `GET /docs` — Swagger UI
-- [ ] `GET /redoc` — ReDoc UI
+- [x] `GET /openapi.json` — raw spec
+- [x] `GET /openapi.yaml` — raw spec
+- [x] `GET /docs` — Swagger UI
+- [x] `GET /redoc` — ReDoc UI
 
 ### 4. Validation
-- [ ] Validate requests against spec
-- [ ] Validate responses against spec
-- [ ] Warn on undocumented routes
+- [x] Validate requests against spec
+- [x] Validate responses against spec
+- [x] Warn on undocumented routes
 
 ### 5. Config Support
 ```yaml

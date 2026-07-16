@@ -1,12 +1,12 @@
 # Release Notes
 
-43 tasks created for LePain framework development roadmap.
+44 tasks created for LePain framework development roadmap.
 
 ## Implementation Status Audit
 
 Audited against current code and specs.
 
-### Done (13)
+### Done (14)
 - 01: Structured Logging
 - 02: Metrics & Observability
 - 03: Circuit Breaker
@@ -16,12 +16,13 @@ Audited against current code and specs.
 - 15: Security Hardening
 - 24: Caching Layer
 - 25: HTTP Client
+- 28: OpenAPI Generation
 - 31: Testing Utilities
 - 40: Compression
 - 41: Request/Response Transformation
 - 42: Error Classification
 
-### Partial (10)
+### Partial (9)
 - 05: PostgreSQL Task Store
 - 06: CLI Generator
 - 08: Rate Limiting
@@ -31,9 +32,8 @@ Audited against current code and specs.
 - 18: Database Migrations
 - 19: Config Hot Reload
 - 27: Feature Flags
-- 28: OpenAPI Generation
 
-### Open (20)
+### Open (21)
 - 12: Event Sourcing
 - 14: Performance Benchmarks
 - 16: WebSocket Transport
@@ -54,6 +54,7 @@ Audited against current code and specs.
 - 38: Request Deduplication
 - 39: Multi-Region
 - 43: Dependency Injection
+- 44: Declarative Endpoint Contracts
 
 ## Summary by Category
 
@@ -86,12 +87,13 @@ Audited against current code and specs.
 - 24: Caching Layer
 - 34: Schema Registry
 
-### Developer Experience (5)
+### Developer Experience (6)
 - 06: CLI Generator
 - 07: Request Validation
 - 28: OpenAPI Generation
 - 31: Testing Utilities
 - 43: Dependency Injection
+- 44: Declarative Endpoint Contracts
 
 ### Architecture (5)
 - 09: Middleware Pipeline
@@ -120,6 +122,6 @@ Audited against current code and specs.
 ## Priority Recommendations
 
 **P0 (Do First):** none
-**P1 (Do Next):** 28
-**P2 (Plan):** 05, 06, 10, 11, 13, 18, 19, 27
+**P1 (Do Next):** none
+**P2 (Plan):** 44, 05, 06, 10, 11, 13, 18, 19, 27
 **P3 (Backlog):** 12, 14, 16, 17, 20, 21, 22, 23, 26, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43

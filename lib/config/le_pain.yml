@@ -74,6 +74,20 @@ cache:
   namespace: le_pain
   version: v1
 
+openapi:
+  enabled: true
+  info:
+    title: LePain API
+    version: 1.0.0
+    description: API documentation
+  docs:
+    swagger_ui: true
+    redoc: true
+  validation:
+    requests: true
+    responses: false
+  warn_undocumented: true
+
 task_store:
   type: memory
   options:
