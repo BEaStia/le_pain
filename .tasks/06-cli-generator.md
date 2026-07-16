@@ -1,7 +1,7 @@
 # CLI Generator
 
 ## Status
-Partial — CLI scaffolding and component generation exist; runtime flags, auto-registration, and custom template directory support remain open.
+Done — CLI scaffolding, component generation, runtime flags, auto-registration, and custom template directory support are implemented.
 
 ## Problem
 Creating a new LePain microservice requires manual setup: directory structure, config, Gemfile, handlers, etc.
@@ -12,9 +12,9 @@ Add `lepain` CLI to scaffold new services and manage existing ones.
 ## Tasks
 
 ### 1. CLI Entry Point
-- [ ] Create `exe/lepain` executable
-- [ ] Add to gemspec executables
-- [ ] Commands: `new`, `generate`, `run`
+- [x] Create `exe/lepain` executable
+- [x] Add to gemspec executables
+- [x] Commands: `new`, `generate`, `run`
 
 ### 2. `lepain new <name>`
 ```
@@ -36,20 +36,20 @@ my-service/
 ```
 
 ### 3. `lepain generate handler <name>`
-- [ ] Generate handler file with boilerplate
-- [ ] Auto-register in config
+- [x] Generate handler file with boilerplate
+- [x] Auto-register in config
 
 ### 4. `lepain generate job <name>`
-- [ ] Generate job file with boilerplate
-- [ ] Auto-register in config
+- [x] Generate job file with boilerplate
+- [x] Auto-register in config
 
 ### 5. `lepain run`
-- [ ] Start service with proper env vars
-- [ ] Support `--http-port`, `--async`, `--mq` flags
+- [x] Start service with proper env vars
+- [x] Support `--http-port`, `--async`, `--mq` flags
 
 ### 6. Templates
-- [ ] Use ERB templates for generation
-- [ ] Support custom template directory
+- [x] Use ERB templates for generation
+- [x] Support custom template directory
 
 ## Acceptance Criteria
 - `lepain new my-service` creates working project

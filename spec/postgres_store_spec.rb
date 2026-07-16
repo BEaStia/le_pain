@@ -47,6 +47,7 @@ module PG
           'updated_at' => params[8],
           'started_at' => params[9],
           'completed_at' => params[10],
+          'attempts' => params[11],
         }
         PG::Result.new([@data[id]])
 
@@ -55,7 +56,8 @@ module PG
         PG::Result.new(@data[id] ? [@data[id]] : [])
 
       when /SELECT \* FROM lepain_tasks.*ORDER BY/
-        limit = params.last
+        limit = params[-2]
+        offset = params[-1]
         tasks = @data.values
 
         # Apply filters from WHERE clause
@@ -71,7 +73,13 @@ module PG
           tasks = tasks.select { |t| t['type'] == type_value }
         end
 
-        tasks = tasks.sort_by { |t| t['created_at'] }.reverse.first(limit)
+        if sql.include?('to_tsvector')
+          search_param_idx = sql.match(/plainto_tsquery\('simple', \$(\d+)\)/)[1].to_i
+          search_value = params[search_param_idx - 1]
+          tasks = tasks.select { |t| t['payload'].to_s.include?(search_value) }
+        end
+
+        tasks = tasks.sort_by { |t| t['created_at'] }.reverse.drop(offset).first(limit)
         PG::Result.new(tasks)
 
       when /UPDATE lepain_tasks/
@@ -82,6 +90,8 @@ module PG
           @data[id]['error'] = params[3]
           @data[id]['updated_at'] = params[4]
           @data[id]['completed_at'] = params[5]
+          @data[id]['started_at'] = params[6]
+          @data[id]['attempts'] = params[7]
         end
         PG::Result.new
 
@@ -112,6 +122,8 @@ module PG
         PG::Result.new([{ 'count' => @data.size.to_s }])
       when /DELETE FROM lepain_tasks/
         @data.clear
+        PG::Result.new
+      when /BEGIN|COMMIT|ROLLBACK/
         PG::Result.new
       else
         PG::Result.new
@@ -196,6 +208,23 @@ RSpec.describe LePain::TaskStores::PostgresStore do
       typed = store.list(type: 'type_1')
       expect(typed.size).to eq(1)
     end
+
+    it 'supports offset pagination' do
+      tasks = store.list(limit: 1, offset: 1)
+      expect(tasks.size).to eq(1)
+    end
+
+    it 'supports page pagination' do
+      tasks = store.list(page: 2, page_size: 1)
+      expect(tasks.size).to eq(1)
+    end
+
+    it 'supports full-text payload search' do
+      store.create(LePain::Task.new(type: 'report', payload: { title: 'needle report' }))
+      matches = store.list(search: 'needle')
+      expect(matches.size).to eq(1)
+      expect(matches.first.payload['title']).to eq('needle report')
+    end
   end
 
   describe '#delete' do
@@ -229,6 +258,25 @@ RSpec.describe LePain::TaskStores::PostgresStore do
       mock_conn.instance_variable_get(:@data)[task.id]['updated_at'] = (Time.now - 100_000).to_s
       store.cleanup
       expect(store.size).to eq(0)
+    end
+  end
+
+  describe 'attempt tracking' do
+    it 'persists task attempts' do
+      store.create(task)
+      store.update(task.id) { |t| t.increment_attempt! }
+      expect(store.find(task.id).attempts).to eq(1)
+    end
+  end
+
+  describe 'cleanup scheduler' do
+    it 'starts and stops cleanup thread' do
+      scheduled = described_class.new(connection: mock_conn, cleanup_interval: 60)
+      thread = scheduled.instance_variable_get(:@cleanup_thread)
+
+      expect(thread).to be_alive
+      scheduled.stop_cleanup_scheduler
+      expect(scheduled.instance_variable_get(:@cleanup_thread)).to be_nil
     end
   end
 end

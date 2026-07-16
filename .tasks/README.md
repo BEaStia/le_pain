@@ -6,11 +6,13 @@
 
 Audited against current code and specs.
 
-### Done (15)
+### Done (17)
 - 01: Structured Logging
 - 02: Metrics & Observability
 - 03: Circuit Breaker
 - 04: Retry Policy
+- 05: PostgreSQL Task Store
+- 06: CLI Generator
 - 07: Request Validation
 - 09: Middleware Pipeline
 - 15: Security Hardening
@@ -23,9 +25,7 @@ Audited against current code and specs.
 - 42: Error Classification
 - 44: Declarative Endpoint Contracts
 
-### Partial (9)
-- 05: PostgreSQL Task Store
-- 06: CLI Generator
+### Partial (7)
 - 08: Rate Limiting
 - 10: Distributed Tracing
 - 11: Health Check Enhancements
@@ -123,5 +123,5 @@ Audited against current code and specs.
 
 **P0 (Do First):** none
 **P1 (Do Next):** none
-**P2 (Plan):** 05, 06, 10, 11, 13, 18, 19, 27
+**P2 (Plan):** 10, 11, 13, 18, 19, 27
 **P3 (Backlog):** 12, 14, 16, 17, 20, 21, 22, 23, 26, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43

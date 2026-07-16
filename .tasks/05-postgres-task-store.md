@@ -1,7 +1,7 @@
 # PostgreSQL Task Store
 
 ## Status
-Partial — PostgreSQL task store with CRUD, filters, pooling, and cleanup exists; pagination, full-text search, and scheduled cleanup remain open.
+Done — PostgreSQL task store has schema/indexes, pooling, transactional updates, pagination, full-text payload search, and scheduled cleanup.
 
 ## Problem
 Memory store loses data on restart. File store doesn't scale. Redis requires separate infrastructure. PostgreSQL is often already available.
@@ -34,19 +34,19 @@ CREATE INDEX idx_lepain_tasks_type ON lepain_tasks(type);
 ```
 
 ### 2. Implementation
-- [ ] Create `LePain::TaskStores::PostgresStore`
-- [ ] Use `pg` gem (optional dependency)
-- [ ] Connection pool support
-- [ ] Transactional updates
+- [x] Create `LePain::TaskStores::PostgresStore`
+- [x] Use `pg` gem (optional dependency)
+- [x] Connection pool support
+- [x] Transactional updates
 
 ### 3. Query Support
-- [ ] `list(state:, type:, limit:)` with proper WHERE clauses
-- [ ] Pagination support
-- [ ] Full-text search on payload
+- [x] `list(state:, type:, limit:)` with proper WHERE clauses
+- [x] Pagination support
+- [x] Full-text search on payload
 
 ### 4. Cleanup
-- [ ] Background job to delete expired finished tasks
-- [ ] Configurable cleanup interval
+- [x] Background job to delete expired finished tasks
+- [x] Configurable cleanup interval
 
 ### 5. Config Support
 ```yaml

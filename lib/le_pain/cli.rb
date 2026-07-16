@@ -7,13 +7,17 @@ module LePain
   class CLI
     TEMPLATES_DIR = File.expand_path('cli/templates', __dir__)
 
-    def initialize
-      @command = ARGV[0]
-      @args = ARGV[1..]
+    def initialize(argv = ARGV)
+      @argv = argv.dup
+      @template_dir = extract_option('--template-dir')
+      @command = @argv[0]
+      @args = @argv[1..] || []
     end
 
     def run
       case @command
+      when 'run'
+        run_service
       when 'new'
         generate_new_service
       when 'generate', 'g'
@@ -30,6 +34,67 @@ module LePain
     end
 
     private
+
+    def extract_option(name)
+      index = @argv.index(name)
+      return unless index
+
+      value = @argv[index + 1]
+      @argv.slice!(index, 2)
+      value
+    end
+
+    def flag?(name)
+      !!@args.delete(name)
+    end
+
+    def option(name)
+      index = @args.index(name)
+      return unless index
+
+      value = @args[index + 1]
+      @args.slice!(index, 2)
+      value
+    end
+
+    def run_service
+      http_port = option('--http-port')&.to_i
+      async = flag?('--async')
+      metrics = flag?('--metrics')
+      mq_client = build_mq_client(option('--mq'))
+
+      LePain::Application.run!(
+        http_port: http_port,
+        async: async,
+        metrics: metrics,
+        mq_client: mq_client
+      )
+    end
+
+    def build_mq_client(name)
+      return unless name
+
+      require_relative 'transports'
+      require_relative 'transports/mq_clients'
+
+      case name
+      when 'kafka'
+        config = LePain::Application.config.dig('mq', 'kafka') || {}
+        LePain::Transports::KafkaClient.new(
+          brokers: config['brokers'] || ['localhost:9092'],
+          group_id: config['group_id'] || 'lepain'
+        )
+      when 'nats'
+        config = LePain::Application.config.dig('mq', 'nats') || {}
+        LePain::Transports::NatsClient.new(url: config['url'] || 'nats://localhost:4222')
+      when 'rmq'
+        config = LePain::Application.config.dig('mq', 'rmq') || {}
+        LePain::Transports::RmqClient.new(url: config['url'] || 'amqp://localhost:5672')
+      else
+        puts "Unknown message queue: #{name}"
+        exit 1
+      end
+    end
 
     def generate_new_service
       service_name = @args[0]
@@ -107,6 +172,7 @@ module LePain
       @handler_name = name
       @handler_class = name.split('_').map(&:capitalize).join
       generate_file('.', "handlers/#{name}_handler.rb", binding)
+      register_handler(name)
       puts "Generated handler: handlers/#{name}_handler.rb"
     end
 
@@ -114,6 +180,7 @@ module LePain
       @job_name = name
       @job_class = name.split('_').map(&:capitalize).join
       generate_file('.', "jobs/#{name}_job.rb", binding)
+      register_job(name)
       puts "Generated job: jobs/#{name}_job.rb"
     end
 
@@ -125,7 +192,7 @@ module LePain
     end
 
     def generate_file(base_dir, relative_path, context, executable: false)
-      template_path = File.join(TEMPLATES_DIR, "#{relative_path}.erb")
+      template_path = template_path_for(relative_path)
       target_path = File.join(base_dir, relative_path)
 
       if File.exist?(template_path)
@@ -135,8 +202,51 @@ module LePain
         content = default_content(relative_path, context)
       end
 
+      FileUtils.mkdir_p(File.dirname(target_path))
       File.write(target_path, content)
       FileUtils.chmod(0o755, target_path) if executable
+    end
+
+    def template_path_for(relative_path)
+      custom_path = File.join(@template_dir, "#{relative_path}.erb") if @template_dir
+      return custom_path if custom_path && File.exist?(custom_path)
+
+      File.join(TEMPLATES_DIR, "#{relative_path}.erb")
+    end
+
+    def register_handler(name)
+      service_file = File.join(Dir.pwd, 'service.rb')
+      return unless File.exist?(service_file)
+
+      class_name = "#{name.split('_').map(&:capitalize).join}Handler"
+      line = "LePain::Application.router.register('POST:/#{name}', #{class_name})"
+      insert_registration(service_file, '# Register handlers', line)
+    end
+
+    def register_job(name)
+      service_file = File.join(Dir.pwd, 'service.rb')
+      return unless File.exist?(service_file)
+
+      class_name = "#{name.split('_').map(&:capitalize).join}Job"
+      insert_registration(service_file, '# Register jobs', "LePain::AsyncHandler.register(#{class_name})")
+    end
+
+    def insert_registration(path, marker, line)
+      content = File.read(path)
+      return if content.include?(line)
+
+      lines = content.lines
+      marker_index = lines.index { |candidate| candidate.strip == marker }
+
+      if marker_index
+        insert_at = marker_index + 1
+        insert_at += 1 while lines[insert_at]&.strip&.start_with?('LePain::')
+        lines.insert(insert_at, "#{line}\n")
+      else
+        lines << "\n#{marker}\n#{line}\n"
+      end
+
+      File.write(path, lines.join)
     end
 
     def default_content(path, context)
@@ -198,6 +308,16 @@ module LePain
             end
           end
         RUBY
+      when %r{\Ahandlers/.+_handler\.rb\z}
+        <<~RUBY
+          # frozen_string_literal: true
+
+          class #{@handler_class}Handler < LePain::Handler
+            handle 'POST:/#{@handler_name}' do |request, context|
+              LePain::Response.success({ message: 'Hello from #{@handler_class}Handler' })
+            end
+          end
+        RUBY
       when 'jobs/example_job.rb'
         <<~RUBY
           # frozen_string_literal: true
@@ -209,6 +329,17 @@ module LePain
             end
           end
         RUBY
+      when %r{\Ajobs/.+_job\.rb\z}
+        <<~RUBY
+          # frozen_string_literal: true
+
+          class #{@job_class}Job < LePain::AsyncJob
+            def self.process(task)
+              LePain::Application.logger.info("Processing #{@job_name} job")
+              { result: 'done' }
+            end
+          end
+        RUBY
       when 'services/example_service.rb'
         <<~RUBY
           # frozen_string_literal: true
@@ -216,6 +347,16 @@ module LePain
           class ExampleService
             def self.do_something
               LePain::Application.logger.info("Doing something")
+              { status: 'ok' }
+            end
+          end
+        RUBY
+      when %r{\Aservices/.+_service\.rb\z}
+        <<~RUBY
+          # frozen_string_literal: true
+
+          class #{@service_class}Service
+            def self.call
               { status: 'ok' }
             end
           end
@@ -287,9 +428,17 @@ module LePain
 
         Usage:
           lepain new <service_name>     Create a new service
+          lepain run [options]          Run a service
           lepain generate <type> <name> Generate a component
           lepain help                   Show this help
           lepain version                Show version
+
+        Run options:
+          --http-port PORT              Start HTTP adapter on PORT
+          --async                       Enable async job routes
+          --metrics                     Enable metrics endpoint
+          --mq kafka|nats|rmq           Start message queue adapter
+          --template-dir DIR            Use custom generator templates
 
         Component types:
           handler, h    Generate a new handler
@@ -298,6 +447,7 @@ module LePain
 
         Examples:
           lepain new my-service
+          lepain run --http-port 3000 --async --metrics
           lepain generate handler order
           lepain generate job report
           lepain generate service user
