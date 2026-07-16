@@ -157,6 +157,11 @@ security:
 health_check:
   enabled: true
   port: 3001
+  startup_timeout: 30
+  readiness:
+    - task_store
+  liveness:
+    - deadlock_check
 
 shutdown:
   timeout: 30

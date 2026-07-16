@@ -1,5 +1,25 @@
 require 'spec_helper'
+require 'le_pain/health_check'
 require 'le_pain/health_check_enhanced'
+
+class FakeHealthClient
+  attr_reader :output
+
+  def initialize(request)
+    @request = request
+    @output = +''
+  end
+
+  def gets
+    @request
+  end
+
+  def print(value)
+    @output << value
+  end
+
+  def close; end
+end
 
 RSpec.describe LePain::HealthCheckEnhanced::Probe do
   let(:probe) { described_class.new(:test) }
@@ -67,12 +87,48 @@ RSpec.describe LePain::HealthCheckEnhanced::EnhancedHealthCheck do
       health_check.readiness(:database) { { connected: true } }
       expect(health_check.readiness_probe.checks.size).to eq(1)
     end
+
+    it 'adds database dependency checks' do
+      connection = double('database', exec: true)
+      health_check.database(connection)
+      health_check.start!
+
+      result = health_check.check_readiness
+
+      expect(result[:status]).to eq(:healthy)
+      expect(result[:checks].first[:name]).to eq(:database)
+    end
+
+    it 'adds redis dependency checks' do
+      redis = double('redis', ping: 'PONG')
+      health_check.redis(redis)
+      health_check.start!
+
+      expect(health_check.check_readiness[:status]).to eq(:healthy)
+    end
+
+    it 'adds mq dependency checks' do
+      mq = double('mq', connected?: true)
+      health_check.mq(mq)
+      health_check.start!
+
+      expect(health_check.check_readiness[:status]).to eq(:healthy)
+    end
   end
 
   describe '#liveness' do
     it 'adds liveness check' do
       health_check.liveness(:process) { { alive: true } }
       expect(health_check.liveness_probe.checks.size).to eq(1)
+    end
+
+    it 'adds deadlock liveness checks' do
+      health_check.deadlock_check
+
+      result = health_check.check_liveness
+
+      expect(result[:status]).to eq(:healthy)
+      expect(result[:checks].first[:name]).to eq(:deadlock)
     end
   end
 
@@ -151,5 +207,53 @@ RSpec.describe LePain::HealthCheckEnhanced::EnhancedHealthCheck do
       json = health_check.to_json
       expect(JSON.parse(json)).to be_a(Hash)
     end
+  end
+end
+
+RSpec.describe LePain::HealthCheck do
+  let(:enhanced) { LePain::HealthCheckEnhanced::EnhancedHealthCheck.new }
+  let(:health_check) { described_class.new(enhanced: enhanced) }
+
+  def response_for(path)
+    client = FakeHealthClient.new("GET #{path} HTTP/1.1\r\n")
+    health_check.send(:handle_request, client)
+    client.output
+  end
+
+  it 'serves startup probe endpoint' do
+    enhanced.startup { { initialized: true } }
+
+    response = response_for('/health/startup')
+
+    expect(response).to include('HTTP/1.1 200 OK')
+    expect(JSON.parse(response.split("\r\n\r\n", 2).last)['name']).to eq('startup')
+  end
+
+  it 'serves readiness probe endpoint with 503 when not ready' do
+    response = response_for('/health/readiness')
+
+    expect(response).to include('HTTP/1.1 503 Service Unavailable')
+    expect(JSON.parse(response.split("\r\n\r\n", 2).last)['status']).to eq('unhealthy')
+  end
+
+  it 'serves liveness probe endpoint' do
+    enhanced.liveness { { alive: true } }
+
+    response = response_for('/health/liveness')
+
+    expect(response).to include('HTTP/1.1 200 OK')
+    expect(JSON.parse(response.split("\r\n\r\n", 2).last)['name']).to eq('liveness')
+  end
+
+  it 'serves aggregate health with 503 when a probe is unhealthy' do
+    enhanced.startup { { initialized: true } }
+    enhanced.readiness { raise 'database down' }
+    enhanced.liveness { { alive: true } }
+    enhanced.start!
+
+    response = response_for('/health')
+
+    expect(response).to include('HTTP/1.1 503 Service Unavailable')
+    expect(JSON.parse(response.split("\r\n\r\n", 2).last)).to include('startup', 'readiness', 'liveness')
   end
 end

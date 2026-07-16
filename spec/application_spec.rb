@@ -75,6 +75,36 @@ RSpec.describe LePain::Application do
     end
   end
 
+  describe '.configure_health_check' do
+    after do
+      described_class.instance_variable_set(:@health_check, nil)
+      described_class.instance_variable_set(:@task_store, nil)
+    end
+
+    it 'configures enhanced health probes from config' do
+      allow(described_class).to receive(:config).and_return(
+        'health_check' => {
+          'enabled' => true,
+          'startup_timeout' => 10,
+          'readiness' => ['task_store'],
+          'liveness' => ['deadlock_check'],
+        },
+        'task_store' => {
+          'type' => 'memory',
+          'options' => {},
+        }
+      )
+
+      health_check = described_class.configure_health_check
+      enhanced = health_check.enhanced
+
+      expect(enhanced).to be_a(LePain::HealthCheckEnhanced::EnhancedHealthCheck)
+      expect(enhanced.started?).to be true
+      expect(enhanced.check_readiness[:status]).to eq(:healthy)
+      expect(enhanced.check_liveness[:status]).to eq(:healthy)
+    end
+  end
+
   describe '#new' do
     it 'does not raise an error' do
       expect { described_class.new }.not_to raise_exception

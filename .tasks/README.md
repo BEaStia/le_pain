@@ -6,7 +6,7 @@
 
 Audited against current code and specs.
 
-### Done (17)
+### Done (18)
 - 01: Structured Logging
 - 02: Metrics & Observability
 - 03: Circuit Breaker
@@ -15,6 +15,7 @@ Audited against current code and specs.
 - 06: CLI Generator
 - 07: Request Validation
 - 09: Middleware Pipeline
+- 11: Health Check Enhancements
 - 15: Security Hardening
 - 24: Caching Layer
 - 25: HTTP Client
@@ -25,10 +26,9 @@ Audited against current code and specs.
 - 42: Error Classification
 - 44: Declarative Endpoint Contracts
 
-### Partial (7)
+### Partial (6)
 - 08: Rate Limiting
 - 10: Distributed Tracing
-- 11: Health Check Enhancements
 - 13: Plugin System
 - 18: Database Migrations
 - 19: Config Hot Reload
@@ -123,5 +123,5 @@ Audited against current code and specs.
 
 **P0 (Do First):** none
 **P1 (Do Next):** none
-**P2 (Plan):** 10, 11, 13, 18, 19, 27
+**P2 (Plan):** 10, 13, 18, 19, 27
 **P3 (Backlog):** 12, 14, 16, 17, 20, 21, 22, 23, 26, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43

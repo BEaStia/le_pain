@@ -7,6 +7,7 @@ require_relative 'environment'
 require_relative 'config_validator'
 require_relative 'shutdown_handler'
 require_relative 'health_check'
+require_relative 'health_check_enhanced'
 require_relative 'router'
 require_relative 'request'
 require_relative 'response'
@@ -128,6 +129,46 @@ module LePain
         Cache.configure(config['cache'] || {})
       end
 
+      def configure_health_check
+        health_config = config.fetch('health_check', {})
+        return health_check if health_config['enabled'] == false
+
+        enhanced = HealthCheckEnhanced::EnhancedHealthCheck.new
+        enhanced.startup { { initialized: true, timeout: health_config['startup_timeout'] || 30 } }
+
+        Array(health_config['readiness']).each do |dependency|
+          configure_readiness_check(enhanced, dependency)
+        end
+
+        Array(health_config['liveness']).each do |dependency|
+          configure_liveness_check(enhanced, dependency)
+        end
+
+        enhanced.start!
+        health_check.enhanced = enhanced
+        health_check
+      end
+
+      def configure_readiness_check(enhanced, dependency)
+        case dependency.to_s
+        when 'task_store'
+          enhanced.readiness(:task_store) { { size: task_store.size } }
+        when 'database'
+          enhanced.readiness(:database) { { connected: true, size: task_store.size } }
+        else
+          enhanced.readiness(dependency.to_sym) { raise "unknown readiness dependency: #{dependency}" }
+        end
+      end
+
+      def configure_liveness_check(enhanced, dependency)
+        case dependency.to_s
+        when 'deadlock', 'deadlock_check'
+          enhanced.deadlock_check
+        else
+          enhanced.liveness(dependency.to_sym) { raise "unknown liveness dependency: #{dependency}" }
+        end
+      end
+
       def configure_openapi(router)
         openapi_config = config.fetch('openapi', {})
         return if openapi_config['enabled'] == false
@@ -176,7 +217,7 @@ module LePain
         enable_async_processing if async
         enable_metrics if metrics || config.dig('metrics', 'enabled')
 
-        health_check.start(config.dig('health_check', 'port') || 3001) if config.dig('health_check', 'enabled')
+        configure_health_check.start(config.dig('health_check', 'port') || 3001) if config.dig('health_check', 'enabled')
 
         if http_port
           http_config = config.fetch('http', {})

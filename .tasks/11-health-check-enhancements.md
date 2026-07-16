@@ -1,7 +1,7 @@
 # Health Check Enhancements
 
 ## Status
-Partial — startup/readiness/liveness probe objects exist; HTTP endpoints, concrete dependency checks, and deadlock/degradation behavior remain open.
+Done — startup/readiness/liveness probes, HTTP endpoints, dependency checks, deadlock liveness checks, and config wiring are implemented.
 
 ## Problem
 Current health check is basic — just a list of registered checks. Needs startup probes, readiness/liveness separation, and dependency checks.
@@ -12,15 +12,15 @@ Implement Kubernetes-compatible health checks with startup, readiness, and liven
 ## Tasks
 
 ### 1. Three Probe Types
-- [ ] **Startup** — is the service initialized? (initializers loaded)
-- [ ] **Readiness** — can it accept traffic? (dependencies connected)
-- [ ] **Liveness** — is it alive? (not deadlocked)
+- [x] **Startup** — is the service initialized? (initializers loaded)
+- [x] **Readiness** — can it accept traffic? (dependencies connected)
+- [x] **Liveness** — is it alive? (not deadlocked)
 
 ### 2. Dependency Checks
-- [ ] Database connectivity
-- [ ] Redis connectivity
-- [ ] MQ connectivity
-- [ ] External API health
+- [x] Database connectivity
+- [x] Redis connectivity
+- [x] MQ connectivity
+- [x] External API health
 
 ### 3. Endpoints
 ```
@@ -31,9 +31,9 @@ GET /health           → aggregate of all
 ```
 
 ### 4. Graceful Degradation
-- [ ] Readiness fails → stop receiving new traffic
-- [ ] Liveness fails → restart process
-- [ ] Startup fails → fail fast on boot
+- [x] Readiness fails → stop receiving new traffic
+- [x] Liveness fails → restart process
+- [x] Startup fails → fail fast on boot
 
 ### 5. Config Support
 ```yaml
