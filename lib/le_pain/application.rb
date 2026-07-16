@@ -11,6 +11,8 @@ require_relative 'router'
 require_relative 'request'
 require_relative 'response'
 require_relative 'transports'
+require_relative 'transports/http'
+require_relative 'security'
 
 module LePain
   class Application
@@ -33,7 +35,7 @@ module LePain
       end
 
       def config
-        @config ||= YAML.load_file(File.join(root, 'config', 'le_pain.yml'))
+        @config ||= Security.resolve_secrets(YAML.load_file(File.join(root, 'config', 'le_pain.yml')))
       end
 
       def logger
@@ -59,6 +61,8 @@ module LePain
           elsif auth_config
             r.auth_header(auth_config)
           end
+
+          configure_security_middleware(r)
         end
       end
 
@@ -116,6 +120,27 @@ module LePain
         CircuitBreaker.configure(config['circuit_breakers'] || {})
       end
 
+      def configure_security_middleware(router)
+        security_config = config.fetch('security', {})
+        return if security_config['enabled'] == false
+
+        headers = normalize_security_headers(security_config.fetch('headers', {}))
+        payload = security_config.fetch('payload', {})
+        sanitizer = security_config.fetch('sanitizer', {})
+        audit = security_config.fetch('audit', {})
+
+        router.middleware(:security_payload_limit, Security::PayloadLimit, **symbolize_options(payload))
+        router.middleware(:security_input_sanitizer, Security::InputSanitizer, **symbolize_options(sanitizer))
+        router.middleware(:security_audit_log, Security::AuditLog, **symbolize_options(audit))
+        router.middleware(:security_headers, Security::SecurityHeaders, **headers)
+      end
+
+      def normalize_security_headers(headers)
+        normalized = symbolize_options(headers)
+        normalized[:content_security_policy] = normalized.delete(:csp) if normalized.key?(:csp)
+        normalized
+      end
+
       def symbolize_options(options)
         options.to_h.transform_keys(&:to_sym)
       end
@@ -135,7 +160,13 @@ module LePain
         health_check.start(config.dig('health_check', 'port') || 3001) if config.dig('health_check', 'enabled')
 
         if http_port
-          http = Transports::HttpAdapter.new(router: router, port: http_port)
+          http_config = config.fetch('http', {})
+          http = Transports::HttpAdapter.new(
+            router: router,
+            host: http_config['host'],
+            port: http_port,
+            tls: http_config['tls'] || config.dig('security', 'tls')
+          )
           http.start
           app.instance_variable_set(:@http, http)
         end

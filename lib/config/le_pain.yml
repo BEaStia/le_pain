@@ -40,6 +40,11 @@ idempotency:
 http:
   host: 0.0.0.0
   port: 3000
+  tls:
+    enabled: false
+    cert:
+    key:
+    min_version: TLS1_2
 
 http_client:
   adapter: net_http
@@ -95,6 +100,38 @@ circuit_breakers:
     failure_threshold: 10
     success_threshold: 2
     timeout: 60
+
+security:
+  enabled: true
+  headers:
+    x_frame_options: DENY
+    x_content_type_options: nosniff
+    x_xss_protection: "1; mode=block"
+    strict_transport_security: "max-age=31536000; includeSubDomains"
+    csp: "default-src 'self'"
+    referrer_policy: strict-origin-when-cross-origin
+  payload:
+    max_size: 1048576
+    allowed_types:
+      - application/json
+  sanitizer:
+    strip_null_bytes: true
+    max_string_length: 10000
+    reject_sql_patterns: true
+    reject_path_traversal: true
+    escape_html: true
+  tls:
+    enabled: false
+    cert:
+    key:
+    min_version: TLS1_2
+  audit:
+    log_payload: false
+    sensitive_fields:
+      - password
+      - token
+      - secret
+      - api_key
 
 health_check:
   enabled: true

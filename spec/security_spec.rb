@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'le_pain/security'
+require 'le_pain/transports/http'
 
 RSpec.describe LePain::Security::SecurityHeaders do
   let(:middleware) { described_class.new }
@@ -35,6 +36,16 @@ RSpec.describe LePain::Security::PayloadLimit do
     expect(response.status).to eq(413)
     expect(response.error[:message]).to include('too large')
   end
+
+  it 'rejects disallowed content types' do
+    middleware = described_class.new(allowed_types: ['application/json'])
+    request = LePain::Request.new(action: 'POST:/test', headers: { 'content-type' => 'text/plain' })
+
+    response = middleware.call(request, context, handler)
+
+    expect(response.status).to eq(415)
+    expect(response.error[:code]).to eq('unsupported_content_type')
+  end
 end
 
 RSpec.describe LePain::Security::InputSanitizer do
@@ -63,6 +74,29 @@ RSpec.describe LePain::Security::InputSanitizer do
     expect(request.payload['nested']['value']).to eq('testdata')
     expect(request.payload['array']).to eq(['itemone', 'itemtwo'])
   end
+
+  it 'escapes xss-sensitive characters' do
+    request = LePain::Request.new(action: 'POST:/test', payload: { 'input' => '<script>alert("x")</script>' })
+    response = middleware.call(request, context, handler)
+
+    expect(response.body[:value]).to eq('&lt;script')
+  end
+
+  it 'rejects sql injection patterns' do
+    request = LePain::Request.new(action: 'POST:/test', payload: { 'input' => "1; DROP TABLE users" })
+    response = middleware.call(request, context, handler)
+
+    expect(response.status).to eq(400)
+    expect(response.error[:code]).to eq('sql_injection')
+  end
+
+  it 'rejects path traversal patterns' do
+    request = LePain::Request.new(action: 'POST:/test', payload: { 'input' => '../config/secrets.yml' })
+    response = middleware.call(request, context, handler)
+
+    expect(response.status).to eq(400)
+    expect(response.error[:code]).to eq('path_traversal')
+  end
 end
 
 RSpec.describe LePain::Security::AuditLog do
@@ -81,5 +115,121 @@ RSpec.describe LePain::Security::AuditLog do
     handler = ->(req, ctx) { LePain::Response.error('error', status: 500) }
     middleware.call(request, context, handler)
     expect(logger).to have_received(:warn).with(/SECURITY_AUDIT/)
+  end
+
+  it 'chains audit entries with tamper-evident hashes' do
+    messages = []
+    logger = instance_double(Logger, info: nil, warn: nil, error: nil)
+    allow(logger).to receive(:info) { |message| messages << message }
+    middleware = described_class.new(logger: logger)
+    handler = ->(_req, _ctx) { LePain::Response.success({}) }
+
+    middleware.call(request, context, handler)
+    middleware.call(request, context, handler)
+
+    first = JSON.parse(messages[0].sub('SECURITY_AUDIT: ', ''))
+    second = JSON.parse(messages[1].sub('SECURITY_AUDIT: ', ''))
+    expect(first['hash']).to match(/\A[0-9a-f]{64}\z/)
+    expect(second['previous_hash']).to eq(first['hash'])
+  end
+
+  it 'classifies auth failures' do
+    messages = []
+    logger = instance_double(Logger, info: nil, warn: nil, error: nil)
+    allow(logger).to receive(:warn) { |message| messages << message }
+    middleware = described_class.new(logger: logger)
+    handler = ->(_req, _ctx) { LePain::Response.unauthorized }
+
+    middleware.call(request, context, handler)
+
+    entry = JSON.parse(messages.first.sub('SECURITY_AUDIT: ', ''))
+    expect(entry['event']).to eq('auth_failure')
+  end
+end
+
+RSpec.describe LePain::Security do
+  around do |example|
+    old_value = ENV['LEPAIN_SPEC_SECRET']
+    ENV['LEPAIN_SPEC_SECRET'] = 'resolved-secret'
+    example.run
+  ensure
+    ENV['LEPAIN_SPEC_SECRET'] = old_value
+    described_class.reset_secret_providers!
+  end
+
+  it 'resolves environment placeholders in config hashes' do
+    config = described_class.resolve_secrets(
+      'token' => '${LEPAIN_SPEC_SECRET}',
+      'fallback' => '${LEPAIN_MISSING_SECRET:-fallback-value}',
+      'nested' => ['env:LEPAIN_SPEC_SECRET']
+    )
+
+    expect(config['token']).to eq('resolved-secret')
+    expect(config['fallback']).to eq('fallback-value')
+    expect(config['nested']).to eq(['resolved-secret'])
+  end
+
+  it 'resolves vault references through registered providers' do
+    provider = Class.new do
+      def fetch(path, key: nil)
+        "#{path}:#{key}"
+      end
+    end.new
+    described_class.register_secret_provider('vault', provider)
+
+    expect(described_class.resolve_secrets('vault:secret/data/app#token')).to eq('secret/data/app:token')
+  end
+end
+
+RSpec.describe LePain::Security::AwsSecretsManagerProvider do
+  it 'extracts keys from json secret strings' do
+    client = Class.new do
+      Response = Struct.new(:secret_string, keyword_init: true)
+
+      def get_secret_value(secret_id:)
+        Response.new(secret_string: JSON.generate('password' => "#{secret_id}-value"))
+      end
+    end.new
+
+    provider = described_class.new(client: client)
+
+    expect(provider.fetch('prod/app', key: 'password')).to eq('prod/app-value')
+  end
+end
+
+RSpec.describe 'security application integration' do
+  it 'loads security middleware from config' do
+    router = LePain::Router.new
+    allow(LePain::Application).to receive(:config).and_return(
+      'security' => {
+        'enabled' => true,
+        'headers' => { 'x_frame_options' => 'SAMEORIGIN' },
+        'payload' => { 'max_size' => 128 },
+        'sanitizer' => { 'max_string_length' => 20 },
+        'audit' => {},
+      }
+    )
+
+    LePain::Application.configure_security_middleware(router)
+
+    expect(router.middleware_names).to include(
+      :security_payload_limit,
+      :security_input_sanitizer,
+      :security_audit_log,
+      :security_headers
+    )
+  end
+
+  it 'keeps tls configuration on the http adapter' do
+    adapter = LePain::Transports::HttpAdapter.new(
+      router: LePain::Router.new,
+      host: '127.0.0.1',
+      port: 3443,
+      tls: { 'enabled' => true, 'cert' => '/tmp/cert.pem', 'key' => '/tmp/key.pem', 'min_version' => 'TLS1_3' }
+    )
+
+    expect(adapter.host).to eq('127.0.0.1')
+    expect(adapter.tls['enabled']).to be true
+    expect(adapter.tls['min_version']).to eq('TLS1_3')
   end
 end

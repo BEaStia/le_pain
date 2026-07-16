@@ -3,23 +3,28 @@
 require 'socket'
 require 'json'
 require 'uri'
+require 'openssl'
 
 module LePain
   module Transports
     class HttpAdapter
-      attr_reader :router, :port
+      attr_reader :router, :host, :port, :tls
 
-      def initialize(router:, port: 3000)
+      def initialize(router:, host: nil, port: 3000, tls: nil)
         @router = router
+        @host = host
         @port = port
+        @tls = normalize_tls(tls)
         @server = nil
         @thread = nil
       end
 
       def start
-        @server = TCPServer.new(@port)
+        @server = @host ? TCPServer.new(@host, @port) : TCPServer.new(@port)
+        @ssl_context = build_ssl_context if tls_enabled?
         @thread = Thread.new { run }
-        LePain::Application.logger.info("http transport started on port #{@port}")
+        scheme = tls_enabled? ? 'https' : 'http'
+        LePain::Application.logger.info("#{scheme} transport started on port #{@port}")
       end
 
       def stop
@@ -32,6 +37,7 @@ module LePain
       def run
         loop do
           client = @server.accept
+          client = @ssl_context.accept(client) if tls_enabled?
           Thread.new { handle_client(client) }
         end
       end
@@ -102,6 +108,8 @@ module LePain
                       when 201 then 'Created'
                       when 400 then 'Bad Request'
                       when 404 then 'Not Found'
+                      when 413 then 'Payload Too Large'
+                      when 415 then 'Unsupported Media Type'
                       when 500 then 'Internal Server Error'
                       else 'Unknown'
                       end
@@ -111,6 +119,40 @@ module LePain
         client.print "Content-Length: #{body.bytesize}\r\n"
         client.print "\r\n"
         client.print body
+      end
+
+      def normalize_tls(tls)
+        case tls
+        when true
+          { 'enabled' => true }
+        when Hash
+          tls
+        else
+          { 'enabled' => false }
+        end
+      end
+
+      def tls_enabled?
+        @tls['enabled'] == true
+      end
+
+      def build_ssl_context
+        cert_path = @tls['cert'] || @tls[:cert]
+        key_path = @tls['key'] || @tls[:key]
+        raise ArgumentError, 'TLS cert and key are required' if cert_path.to_s.empty? || key_path.to_s.empty?
+
+        context = OpenSSL::SSL::SSLContext.new
+        context.cert = OpenSSL::X509::Certificate.new(File.read(cert_path))
+        context.key = OpenSSL::PKey.read(File.read(key_path))
+        context.min_version = tls_version(@tls['min_version'] || @tls[:min_version] || 'TLS1_2')
+        context
+      end
+
+      def tls_version(version)
+        case version.to_s.upcase.tr('.', '_')
+        when 'TLS1_3' then OpenSSL::SSL::TLS1_3_VERSION
+        else OpenSSL::SSL::TLS1_2_VERSION
+        end
       end
     end
   end

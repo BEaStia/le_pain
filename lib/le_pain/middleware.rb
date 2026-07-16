@@ -10,6 +10,10 @@ module LePain
         when 'compression' then Compression
         when 'timeout' then Timeout
         when 'rate_limit' then RateLimit
+        when 'security_headers' then Security::SecurityHeaders
+        when 'security_payload_limit' then Security::PayloadLimit
+        when 'security_input_sanitizer' then Security::InputSanitizer
+        when 'security_audit_log' then Security::AuditLog
         else
           raise ArgumentError, "Unknown middleware: #{name}"
         end
